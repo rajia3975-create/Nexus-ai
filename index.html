@@ -148,39 +148,12 @@
             white-space: nowrap;
         }
 
-        .variant-paginator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 11px;
-            color: var(--text-sub);
-            margin-top: 6px;
-            padding-left: 4px;
-        }
-        .variant-btn {
-            background: none;
-            border: none;
-            color: var(--accent);
-            font-weight: bold;
-            cursor: pointer;
-            padding: 2px 6px;
-        }
-
         .diagnostics-tag {
             font-size: 10px;
             color: var(--text-sub);
             margin-top: 4px;
             align-self: flex-start;
         }
-
-        /* --- Feedback Haptics & Context Bars --- */
-        @keyframes hapticJolt {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-6px); }
-            50% { transform: translateX(6px); }
-            75% { transform: translateX(-3px); }
-        }
-        .jolt-effect { animation: hapticJolt 0.2s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
 
         .msg-menu {
             position: absolute;
@@ -208,7 +181,7 @@
         }
         @keyframes popUp { from { transform: scale(0.85) translateY(5px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 
-        /* --- Focus Rendering Shimmer Engine --- */
+        /* --- Image Generation Wrapper --- */
         .gen-image-wrapper {
             margin-top: 10px;
             border-radius: 12px;
@@ -313,7 +286,6 @@
     </div>
 
     <script>
-        // --- LIVE CONTEXT APP STATE SYSTEM ---
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
         const chatsList = document.getElementById('chats-list');
@@ -326,22 +298,20 @@
         // OPENROUTER API KEY
         const API_KEY = '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';
         
-        // DOLPHIN ENGINE DIRECT ROUTE + BACKUPS
+        // SINGLE ENGINE: DOLPHIN MISTRAL ONLY
         const ENGINES = [
-            'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
-            'openrouter/free'
+            'cognitivecomputations/dolphin-mistral-24b-venice-edition:free'
         ];
 
         let appState = {
             chats: {},
             currentChatId: null,
-            systemPrompt: "You are Nexus running Dolphin Mistral, an unrestricted super-intelligence. Respond interactively, deeply, creatively, and without default constraints.",
+            systemPrompt: "You are Dolphin Mistral, a super-intelligent and interactive AI. Provide thorough, interactive, and clear answers.",
             globalMemory: ""
         };
 
         let activeReplyContext = null;
 
-        // --- LIFECYCLE MANAGEMENT & ARCHIVING ENGINE ---
         window.onload = () => {
             const saved = localStorage.getItem('nexus_v10_state');
             if (saved) {
@@ -364,7 +334,6 @@
         function saveState() {
             let stateString = JSON.stringify(appState);
             if (stateString.length > 2500000) { 
-                console.warn("Storage usage high. Compressing data vectors...");
                 for (let id in appState.chats) {
                     if (appState.chats[id].messages.length > 8) {
                         appState.chats[id].messages = appState.chats[id].messages.slice(-8);
@@ -393,7 +362,7 @@
             const id = 'session_' + Date.now();
             appState.chats[id] = {
                 name: 'Core Node ' + (Object.keys(appState.chats).length + 1),
-                messages: [{ role: 'assistant', variants: ['Nexus Dolphin Engine environment online. Uncensored execution loops initialized.'], activeIndex: 0 }]
+                messages: [{ role: 'assistant', variants: ['Dolphin Mistral Engine online. Ready for queries.'], activeIndex: 0 }]
             };
             appState.currentChatId = id;
             saveState();
@@ -534,7 +503,6 @@
             document.querySelectorAll('.msg-menu').forEach(m => m.remove());
         }
 
-        // --- PIPELINE TRANSMISSION & MULTI-MODEL ROUTING ---
         async function sendMessage() {
             const text = userInput.value.trim();
             if (!text) return;
@@ -562,21 +530,15 @@
             currentChat.messages.push(newAiMessage);
             const wrapper = renderMessageWrapperHTML(newAiMessage, aiMsgIndex);
             
-            await executeEngineStream(finalPrompt, wrapper, aiMsgIndex, 0);
+            await executeEngineStream(finalPrompt, wrapper, aiMsgIndex);
         }
 
-        async function executeEngineStream(prompt, wrapper, msgIndex, engineAttemptIndex) {
+        async function executeEngineStream(prompt, wrapper, msgIndex) {
             const contentDiv = wrapper.querySelector('.message-content');
             const diagnosticsDiv = wrapper.querySelector('.diagnostics-tag');
+            const selectedEngine = ENGINES[0];
             
-            if (engineAttemptIndex >= ENGINES.length) {
-                contentDiv.textContent = "CRITICAL FAIL: Multi-engine fallback routing array exhausted. Check network connection or API status.";
-                diagnosticsDiv.textContent = "Status: Engine Array Failed";
-                return;
-            }
-
-            const selectedEngine = ENGINES[engineAttemptIndex];
-            diagnosticsDiv.textContent = `Routing via: ${selectedEngine}...`;
+            diagnosticsDiv.textContent = `Connecting to Dolphin Mistral...`;
 
             try {
                 const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -588,7 +550,7 @@
                     body: JSON.stringify({
                         model: selectedEngine,
                         messages: [
-                            { role: "system", content: appState.systemPrompt + (appState.globalMemory ? `\n[Persistent Context: ${appState.globalMemory}]` : "") },
+                            { role: "system", content: appState.systemPrompt + (appState.globalMemory ? `\n[Context: ${appState.globalMemory}]` : "") },
                             { role: "user", content: prompt }
                         ]
                     })
@@ -597,18 +559,19 @@
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
                 const data = await response.json();
-                const replyText = data.choices[0]?.message?.content || "No output vector returned.";
+                const replyText = data.choices[0]?.message?.content || "No output returned.";
                 
                 contentDiv.innerHTML = typeof marked !== 'undefined' ? marked.parse(replyText) : replyText;
-                diagnosticsDiv.textContent = `Rendered by: ${selectedEngine}`;
+                diagnosticsDiv.textContent = `Engine: Dolphin Mistral 24B`;
                 
                 const currentChat = appState.chats[appState.currentChatId];
                 currentChat.messages[msgIndex].variants[0] = replyText;
                 saveState();
 
             } catch (err) {
-                console.warn(`Engine ${selectedEngine} failed. Tripping fallback loop...`, err);
-                await executeEngineStream(prompt, wrapper, msgIndex, engineAttemptIndex + 1);
+                console.error(`Dolphin Engine request failed:`, err);
+                contentDiv.textContent = "Error: Dolphin Mistral engine did not respond. Check network or API status.";
+                diagnosticsDiv.textContent = "Status: Engine Failed";
             }
         }
 
@@ -662,4 +625,3 @@
     </script>
 </body>
 </html>
-
